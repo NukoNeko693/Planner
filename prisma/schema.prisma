@@ -12,38 +12,96 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
 enum EventScope {
   PERSONAL
   CLASS
   GRADE
+  SCHOOL
 }
 
 model User {
-  id           String     @id @default(cuid())
-  username     String     @unique
+  id           String       @id @default(cuid())
+  username     String       @unique
   name         String
   passwordHash String?
-  status       UserStatus @default(ACTIVE)
+  status       UserStatus   @default(ACTIVE)
+  role         UserRole     @default(STUDENT)
+  classId      String?
+  schoolClass  SchoolClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
   events       Event[]
+  weeklyPlanItems WeeklyPlanItem[]
+  weeklyNotes     WeeklyNote[]
   auditLogs    AuditLog[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
   @@index([status])
+  @@index([role, status])
+  @@index([classId, status])
+}
+
+model WeeklyPlanItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planDate  DateTime @db.Date
+  startTime String
+  endTime   String
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, planDate, startTime])
+}
+
+model WeeklyNote {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart  DateTime @db.Date
+  goal       String   @default("")
+  memo       String   @default("")
+  reflection String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+}
+
+model SchoolClass {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  users     User[]
+  events    Event[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Event {
-  id        String     @id @default(cuid())
-  title     String
-  eventDate DateTime   @db.Date
-  scope     EventScope
-  creatorId String
-  creator   User       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  deletedAt DateTime?
+  id          String       @id @default(cuid())
+  title       String
+  eventDate   DateTime     @db.Date
+  scope       EventScope
+  creatorId   String
+  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  classId     String?
+  schoolClass SchoolClass? @relation(fields: [classId], references: [id], onDelete: Restrict)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
   @@index([eventDate, deletedAt])
   @@index([creatorId, eventDate, deletedAt])
   @@index([scope, eventDate, deletedAt])
+  @@index([classId, eventDate, deletedAt])
 }
 
 model AuditLog {
@@ -55,6 +113,7 @@ model AuditLog {
   entityId   String
   metadata   Json?
   createdAt  DateTime @default(now())
+
   @@index([actorId, createdAt])
   @@index([entityType, entityId, createdAt])
 }

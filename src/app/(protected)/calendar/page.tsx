@@ -3,8 +3,11 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { findVisibleEvents } from "@/server/repositories/event-repository";
+import { findActiveUserContext } from "@/server/repositories/user-repository";
 
 import { EventForm } from "./event-form";
+import { DeleteEventButton } from "./delete-event-button";
+import { SchoolEventControls } from "./school-event-controls";
 
 const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -31,6 +34,8 @@ export default async function CalendarPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  const user = await findActiveUserContext(session.user.id);
+  if (!user) redirect("/login");
 
   const { month: monthParam } = await searchParams;
   const month = parseMonth(monthParam);
@@ -46,6 +51,7 @@ export default async function CalendarPage({
 
   const events = await findVisibleEvents(
     session.user.id,
+    user.classId,
     dateKey(first),
     dateKey(last),
   );
@@ -64,10 +70,14 @@ export default async function CalendarPage({
           </Link>
           <h1 className="mt-2 text-3xl font-bold">カレンダー</h1>
           <p className="mt-1 text-slate-600">
-            個人予定とクラス予定を確認できます。
+            個人予定と{user.schoolClass?.name ?? "未所属"}
+            のクラス予定を確認できます。
           </p>
         </div>
-        <EventForm defaultDate={dateKey(new Date())} />
+        <EventForm
+          defaultDate={dateKey(new Date())}
+          isAdmin={user.role === "ADMIN"}
+        />
       </header>
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -118,15 +128,29 @@ export default async function CalendarPage({
                 <div className="mt-1 space-y-1">
                   {dayEvents.map((event) => (
                     <div
-                      className={`rounded-md px-2 py-1 text-xs font-semibold ${event.scope === "PERSONAL" ? "bg-violet-100 text-violet-900" : "bg-blue-100 text-blue-900"}`}
+                      className={`rounded-md px-2 py-1 text-xs font-semibold ${event.scope === "PERSONAL" ? "bg-violet-100 text-violet-900" : event.scope === "SCHOOL" ? "bg-emerald-100 text-emerald-900" : "bg-blue-100 text-blue-900"}`}
                       key={event.id}
                       title={`${event.creatorName}が作成`}
                     >
                       <span aria-hidden="true">
-                        {event.scope === "PERSONAL" ? "👤" : "🏫"}
+                        {event.scope === "PERSONAL"
+                          ? "👤"
+                          : event.scope === "SCHOOL"
+                            ? "🌐"
+                            : "🏫"}
                       </span>{" "}
-                      {event.scope === "PERSONAL" ? "個人" : "クラス"}・
-                      {event.title}
+                      {event.scope === "PERSONAL"
+                        ? "個人"
+                        : event.scope === "SCHOOL"
+                          ? "学校全体"
+                          : "クラス"}
+                      ・{event.title}
+                      {event.scope === "CLASS" && user.role === "TEACHER" ? (
+                        <DeleteEventButton eventId={event.id} />
+                      ) : null}
+                      {event.scope === "SCHOOL" && user.role === "ADMIN" ? (
+                        <SchoolEventControls event={event} />
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -136,7 +160,7 @@ export default async function CalendarPage({
         </div>
       </section>
       <p className="mt-4 text-sm text-slate-500">
-        個人予定は本人のみ、クラス予定は現在すべてのログインユーザーに表示されます。
+        個人予定は本人のみ、クラス予定は同じクラスだけ、学校全体予定はすべてのログインユーザーに表示されます。
       </p>
     </main>
   );

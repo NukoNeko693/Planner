@@ -35,12 +35,17 @@ export const authConfig = {
   session: { strategy: "jwt", maxAge: 60 * 60 * 8 },
   pages: { signIn: "/login" },
   callbacks: {
+    jwt({ token, user }) {
+      if (user) token.role = user.role;
+      return token;
+    },
     session({ session, token }) {
       if (token.sub) session.user.id = token.sub;
+      if (token.role) session.user.role = token.role;
       return session;
     },
     authorized({ auth, request }) {
-      const isProtected = ["/dashboard", "/calendar"].some((path) =>
+      const isProtected = ["/dashboard", "/calendar", "/class"].some((path) =>
         request.nextUrl.pathname.startsWith(path),
       );
       return !isProtected || Boolean(auth?.user);

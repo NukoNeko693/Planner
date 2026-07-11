@@ -9,7 +9,7 @@
 ```bash
 cp .env.example .env
 npm install
-npm run db:up
+docker compose up -d
 npm run db:migrate
 npm run db:seed
 npm run dev
@@ -17,60 +17,18 @@ npm run dev
 
 - `cp .env.example .env`: 開発用の環境変数ファイルを作成します。必要に応じて接続情報や秘密鍵を変更してください。
 - `npm install`: `package.json`に記載された依存パッケージをインストールします。初回や依存関係更新後に実行します。
-- `npm run db:up`: Docker ComposeでPostgreSQLをバックグラウンド起動します。
+- `docker compose up -d`: PostgreSQLをバックグラウンドで起動します。古いDocker Compose環境では`docker-compose up -d`を使用してください。
 - `npm run db:migrate`: Prismaスキーマの変更から開発用migrationを作成し、DBへ適用します。スキーマを変更した開発時に使用します。
 - `npm run db:seed`: Ryosuke、Teu、Somaの開発用ユーザーを投入します。upsert方式なので再実行できます。
-- `npm run dev`: Next.js開発サーバーを起動します。起動後に http://localhost:3000 を開いてください。
-
-### 2回目以降の起動
-
-初回セットアップが完了していれば、通常は次の2コマンドだけで起動できます。
-
-```bash
-npm run db:up
-npm run dev
-```
-
-PostgreSQLのデータはDocker volumeに保存されているため、`db:migrate`や`db:seed`を起動のたびに実行する必要はありません。
-
-リポジトリを更新した後など、新しいmigrationや依存関係が追加されている場合は次を実行します。
-
-```bash
-npm install
-npm run db:up
-npm run db:deploy
-npm run db:generate
-npm run dev
-```
-
-- `npm install`: 新しく追加・更新された依存パッケージを反映します。
-- `npm run db:deploy`: リポジトリに追加されたmigrationを既存のローカルDBへ適用します。保存済みデータは維持されます。
-- `npm run db:generate`: 更新されたPrismaスキーマに対応するPrisma Clientを生成します。
-
-`npm run db:seed`は、初期ユーザーが存在しない場合や初期データを意図的に更新したい場合だけ再実行してください。
+- `npm run dev`: Next.js開発サーバーを起動します。起動後に <http://localhost:3000> を開いてください。
 
 PostgreSQLを停止する場合は次を実行します。DBデータはDocker volumeに残ります。
 
 ```bash
-npm run db:down
+docker compose down
 ```
 
-PostgreSQLが正常に起動しているか確認する場合は`npm run db:status`を実行してください。
-
-> このプロジェクトの実行環境ではDocker Compose v1を使用するため、内部的には`docker-compose`コマンドを呼び出します。`docker compose up -d`で`unknown shorthand flag: 'd'`と表示される場合も、`npm run db:up`を使用してください。
-
-### Docker・DB接続エラー
-
-- `unknown shorthand flag: 'd' in -d`: `docker compose`が利用できない環境です。`npm run db:up`を実行してください。
-- `Error while fetching server API version`またはDocker socketの`FileNotFoundError`: Docker daemonが起動していません。Docker Desktopを起動するか、Linuxでは`sudo systemctl start docker`でDockerサービスを起動してから`npm run db:up`を再実行してください。
-- Prismaの`P1001`または`Can't reach database server at 127.0.0.1:5432`: PostgreSQLコンテナが起動していません。`npm run db:up`の後に`npm run db:status`で状態を確認してください。
-
-DBがまだ初期化されていない場合は、PostgreSQL起動後に次を1回実行します。
-
-```bash
-npm run db:migrate
-npm run db:seed
-```
+古いDocker Compose環境では`docker-compose down`を使用してください。
 
 ## npmコマンド
 
@@ -83,9 +41,6 @@ npm run db:seed
 | `npm run typecheck`    | ファイルを生成せず、TypeScriptの型だけを検査します。                |
 | `npm run format`       | Prettierで対応ファイルを自動整形します。                            |
 | `npm run format:check` | ファイルを変更せず、Prettierの整形漏れを検査します。                |
-| `npm run db:up`        | Docker ComposeでPostgreSQLをバックグラウンド起動します。            |
-| `npm run db:down`      | PostgreSQLコンテナを停止します。DBのvolumeは削除しません。          |
-| `npm run db:status`    | PostgreSQLコンテナの起動状態を表示します。                          |
 | `npm run db:generate`  | Prismaスキーマから型安全なPrisma Clientを生成します。               |
 | `npm run db:migrate`   | 開発用migrationを作成・適用し、Prisma Clientも更新します。          |
 | `npm run db:deploy`    | 作成済みmigrationだけをDBへ適用します。本番・ステージング用です。   |
@@ -113,6 +68,20 @@ Auth.jsのJWTセッションを使用し、ユーザーと予定はPostgreSQLに
 | Ryosuke    | 0302       |
 | Teu        | 0911       |
 | Soma       | 0805       |
+
+教師アカウントは末尾`T`、管理者アカウントは末尾`O`です。パスワードは元アカウントと同じです。
+
+| 権限   | Ryosuke系 | Teu系 | Soma系 |
+| ------ | --------- | ----- | ------ |
+| 学生   | Ryosuke   | Teu   | Soma   |
+| 教師   | RyosukeT  | TeuT  | SomaT  |
+| 管理者 | RyosukeO  | TeuO  | SomaO  |
+
+所属クラスは、Ryosuke系とTeu系が`1年A組`、Soma系が`1年B組`です。クラス予定は同じ所属クラスのアカウントにだけ表示されます。
+
+学生は個人予定と所属クラス予定を作成できます。クラス予定の削除は同じクラスの教師だけが実行できます。クラスへのメンバー追加は教師または管理者だけが実行できます。これらの制限は画面だけでなくServer Actionでも検証します。
+
+学校全体予定はすべてのログインユーザーが閲覧できますが、作成・編集・削除は管理者だけが実行できます。
 
 パスワードはscryptハッシュとして保存します。初期パスワードは開発用seed専用で、本番運用前に変更またはGoogleログインへ移行してください。
 

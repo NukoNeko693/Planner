@@ -8,6 +8,7 @@ export async function createEvent(input: {
   date: string;
   scope: EventScope;
   creatorId: string;
+  classId: string | null;
 }): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const event = await tx.event.create({
@@ -16,6 +17,7 @@ export async function createEvent(input: {
         eventDate: asDatabaseDate(input.date),
         scope: input.scope,
         creatorId: input.creatorId,
+        classId: input.scope === "CLASS" ? input.classId : null,
       },
       select: { id: true },
     });
@@ -33,6 +35,7 @@ export async function createEvent(input: {
 
 export async function findVisibleEvents(
   userId: string,
+  classId: string | null,
   from: string,
   to: string,
 ): Promise<CalendarEvent[]> {
@@ -40,7 +43,11 @@ export async function findVisibleEvents(
     where: {
       deletedAt: null,
       eventDate: { gte: asDatabaseDate(from), lte: asDatabaseDate(to) },
-      OR: [{ scope: "CLASS" }, { scope: "PERSONAL", creatorId: userId }],
+      OR: [
+        { scope: "SCHOOL" },
+        { scope: "PERSONAL", creatorId: userId },
+        ...(classId ? [{ scope: "CLASS" as const, classId }] : []),
+      ],
     },
     select: {
       id: true,
@@ -60,4 +67,78 @@ export async function findVisibleEvents(
     creatorId: event.creatorId,
     creatorName: event.creator.name,
   }));
+}
+
+export async function updateSchoolEvent(input: {
+  eventId: string;
+  title: string;
+  date: string;
+  actorId: string;
+}): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.event.updateMany({
+      where: { id: input.eventId, scope: "SCHOOL", deletedAt: null },
+      data: { title: input.title, eventDate: asDatabaseDate(input.date) },
+    });
+    if (result.count !== 1) return false;
+    await tx.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: "EVENT_UPDATE",
+        entityType: "Event",
+        entityId: input.eventId,
+      },
+    });
+    return true;
+  });
+}
+
+export async function deleteSchoolEvent(input: {
+  eventId: string;
+  actorId: string;
+}): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.event.updateMany({
+      where: { id: input.eventId, scope: "SCHOOL", deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+    if (result.count !== 1) return false;
+    await tx.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: "EVENT_DELETE",
+        entityType: "Event",
+        entityId: input.eventId,
+      },
+    });
+    return true;
+  });
+}
+
+export async function deleteClassEvent(input: {
+  eventId: string;
+  actorId: string;
+  classId: string;
+}): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.event.updateMany({
+      where: {
+        id: input.eventId,
+        scope: "CLASS",
+        classId: input.classId,
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+    if (result.count !== 1) return false;
+    await tx.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: "EVENT_DELETE",
+        entityType: "Event",
+        entityId: input.eventId,
+      },
+    });
+    return true;
+  });
 }

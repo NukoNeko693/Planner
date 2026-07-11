@@ -1,0 +1,1 @@
+ALTER TYPE "EventScope" ADD VALUE 'SCHOOL';

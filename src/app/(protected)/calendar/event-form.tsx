@@ -6,7 +6,13 @@ import { createEvent, type CreateEventState } from "./actions";
 
 const initialState: CreateEventState = {};
 
-export function EventForm({ defaultDate }: { defaultDate: string }) {
+export function EventForm({
+  defaultDate,
+  isAdmin,
+}: {
+  defaultDate: string;
+  isAdmin: boolean;
+}) {
   const [state, action, pending] = useActionState(createEvent, initialState);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -74,7 +80,7 @@ export function EventForm({ defaultDate }: { defaultDate: string }) {
             </div>
             <fieldset>
               <legend className="mb-2 text-sm font-semibold">公開範囲</legend>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <label className="cursor-pointer rounded-xl border border-slate-300 p-3 text-center has-checked:border-blue-700 has-checked:bg-blue-50">
                   <input
                     className="mr-1"
@@ -94,6 +100,18 @@ export function EventForm({ defaultDate }: { defaultDate: string }) {
                   />{" "}
                   クラス
                 </label>
+                <label
+                  className={`rounded-xl border border-slate-300 p-3 text-center has-checked:border-emerald-700 has-checked:bg-emerald-50 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed bg-slate-100 text-slate-400"}`}
+                >
+                  <input
+                    className="mr-1"
+                    disabled={!isAdmin}
+                    name="scope"
+                    type="radio"
+                    value="SCHOOL"
+                  />{" "}
+                  学校全体
+                </label>
                 <button
                   className="rounded-xl border border-slate-300 p-3 text-slate-500 hover:bg-slate-50"
                   onClick={() =>
@@ -104,6 +122,11 @@ export function EventForm({ defaultDate }: { defaultDate: string }) {
                   学年
                 </button>
               </div>
+              {!isAdmin ? (
+                <p className="mt-2 text-xs font-medium text-slate-500">
+                  学校全体予定の追加・編集は管理者のみ可能です。
+                </p>
+              ) : null}
             </fieldset>
           </div>
           {state.error ? (

@@ -1,4 +1,4 @@
-export type EventScope = "PERSONAL" | "CLASS";
+export type EventScope = "PERSONAL" | "CLASS" | "SCHOOL";
 
 export type CalendarEvent = {
   id: string;
