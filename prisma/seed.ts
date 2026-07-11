@@ -28,15 +28,25 @@ const users = [
   },
 ] as const;
 
-for (const user of users) {
-  await prisma.user.upsert({
-    where: { username: user.username },
-    update: {
-      name: user.name,
-      passwordHash: user.passwordHash,
-      status: "ACTIVE",
-    },
-    create: user,
-  });
+async function main() {
+  for (const user of users) {
+    await prisma.user.upsert({
+      where: { username: user.username },
+      update: {
+        name: user.name,
+        passwordHash: user.passwordHash,
+        status: "ACTIVE",
+      },
+      create: user,
+    });
+  }
 }
-await prisma.$disconnect();
+
+main()
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

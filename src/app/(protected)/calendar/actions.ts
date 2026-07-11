@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { createEventSchema } from "@/features/calendar/validation";
 import { createEvent as persistEvent } from "@/server/repositories/event-repository";
+import { activeUserExists } from "@/server/repositories/user-repository";
 
 export type CreateEventState = { error?: string; success?: string };
 
@@ -14,6 +15,12 @@ export async function createEvent(
 ): Promise<CreateEventState> {
   const session = await auth();
   if (!session?.user?.id) return { error: "ログインが必要です。" };
+  if (!(await activeUserExists(session.user.id))) {
+    return {
+      error:
+        "セッション情報が古くなっています。一度ログアウトして、もう一度ログインしてください。",
+    };
+  }
 
   const parsed = createEventSchema.safeParse({
     title: formData.get("title"),
