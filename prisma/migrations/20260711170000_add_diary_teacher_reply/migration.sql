@@ -1,0 +1,2 @@
+ALTER TABLE "DailyDiary" ADD COLUMN "teacherReply" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "DailyDiary" ADD COLUMN "repliedAt" TIMESTAMP(3);

@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import {
+  dailyDiarySchema,
   planItemSchema,
   weeklyNoteSchema,
 } from "@/features/weekly-plan/validation";
 import {
   createPlanItem,
   deletePlanItem,
+  saveDailyDiary,
   saveWeeklyNote,
   togglePlanItem,
 } from "@/server/repositories/weekly-plan-repository";
@@ -16,6 +18,23 @@ import {
 async function userId() {
   const session = await auth();
   return session?.user?.id;
+}
+
+export async function saveDailyDiaryAction(formData: FormData) {
+  const id = await userId();
+  if (!id) return;
+  const parsed = dailyDiarySchema.safeParse({
+    date: formData.get("date"),
+    content: formData.get("content"),
+  });
+  if (!parsed.success) return;
+  await saveDailyDiary({
+    userId: id,
+    ...parsed.data,
+    submit: formData.get("intent") === "submit",
+  });
+  revalidatePath("/weekly");
+  revalidatePath("/diaries");
 }
 
 export async function addPlanItem(formData: FormData) {

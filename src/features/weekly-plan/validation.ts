@@ -21,3 +21,13 @@ export const weeklyNoteSchema = z.object({
   memo: z.string().trim().max(1000),
   reflection: z.string().trim().max(1000),
 });
+
+export const dailyDiarySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  content: z.string().trim().min(1, "日記を入力してください。").max(2000),
+});
+
+export const diaryReplySchema = z.object({
+  diaryId: z.string().min(1),
+  reply: z.string().trim().min(1, "返信を入力してください。").max(2000),
+});

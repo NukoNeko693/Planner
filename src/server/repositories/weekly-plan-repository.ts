@@ -11,7 +11,68 @@ export function findWeeklyPlan(userId: string, from: string, to: string) {
     prisma.weeklyNote.findUnique({
       where: { userId_weekStart: { userId, weekStart: dbDate(from) } },
     }),
+    prisma.dailyDiary.findMany({
+      where: { userId, diaryDate: { gte: dbDate(from), lte: dbDate(to) } },
+      orderBy: { diaryDate: "asc" },
+    }),
   ]);
+}
+
+export function saveDailyDiary(input: {
+  userId: string;
+  date: string;
+  content: string;
+  submit: boolean;
+}) {
+  const diaryDate = dbDate(input.date);
+  return prisma.dailyDiary.upsert({
+    where: { userId_diaryDate: { userId: input.userId, diaryDate } },
+    create: {
+      userId: input.userId,
+      diaryDate,
+      content: input.content,
+      submittedAt: input.submit ? new Date() : null,
+    },
+    update: {
+      content: input.content,
+      ...(input.submit ? { submittedAt: new Date() } : {}),
+    },
+  });
+}
+
+export function findSubmittedDiariesForTeacher(classId: string) {
+  return prisma.dailyDiary.findMany({
+    where: {
+      submittedAt: { not: null },
+      user: { classId, status: "ACTIVE", role: "STUDENT" },
+    },
+    select: {
+      id: true,
+      diaryDate: true,
+      content: true,
+      submittedAt: true,
+      teacherReply: true,
+      repliedAt: true,
+      user: { select: { name: true } },
+    },
+    orderBy: [{ diaryDate: "desc" }, { submittedAt: "desc" }],
+    take: 100,
+  });
+}
+
+export function replyToDiary(input: {
+  diaryId: string;
+  classId: string;
+  reply: string;
+}) {
+  return prisma.dailyDiary.updateMany({
+    where: {
+      id: input.diaryId,
+      submittedAt: { not: null },
+      user: { classId: input.classId, status: "ACTIVE", role: "STUDENT" },
+    },
+    data: { teacherReply: input.reply, repliedAt: new Date() },
+  });
 }
 
 export function createPlanItem(input: {

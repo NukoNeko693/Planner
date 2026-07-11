@@ -5,6 +5,7 @@ import { findWeeklyPlan } from "@/server/repositories/weekly-plan-repository";
 import {
   addPlanItem,
   deletePlanItemAction,
+  saveDailyDiaryAction,
   saveWeeklyNoteAction,
   togglePlanItemAction,
 } from "./actions";
@@ -35,7 +36,7 @@ export default async function WeeklyPage({
     (_, i) =>
       new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
   );
-  const [items, note] = await findWeeklyPlan(
+  const [items, note, diaries] = await findWeeklyPlan(
     session.user.id,
     key(days[0]),
     key(days[6]),
@@ -126,6 +127,9 @@ export default async function WeeklyPage({
             const dayItems = items.filter(
               (item) => item.planDate.toISOString().slice(0, 10) === date,
             );
+            const diary = diaries.find(
+              (entry) => entry.diaryDate.toISOString().slice(0, 10) === date,
+            );
             return (
               <article
                 className="min-h-[620px] border-r border-slate-200 last:border-r-0"
@@ -202,6 +206,55 @@ export default async function WeeklyPage({
                     <button className="w-full rounded-md bg-slate-800 py-1.5 text-xs font-bold text-white">
                       ＋ 追加
                     </button>
+                  </form>
+                  <form
+                    action={saveDailyDiaryAction}
+                    className="mt-4 space-y-2 border-t-2 border-amber-200 pt-3"
+                  >
+                    <input name="date" type="hidden" value={date} />
+                    <label className="block text-xs font-bold text-amber-800">
+                      今日の日記
+                      {diary?.submittedAt ? (
+                        <span className="ml-1 text-emerald-700">提出済み</span>
+                      ) : null}
+                    </label>
+                    <textarea
+                      className="min-h-28 w-full resize-y rounded-md border border-amber-200 bg-amber-50 p-2 text-sm"
+                      defaultValue={diary?.content ?? ""}
+                      maxLength={2000}
+                      name="content"
+                      placeholder="今日あったこと、感じたこと"
+                      required
+                    />
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        className="rounded-md border border-slate-300 py-1.5 text-xs font-bold"
+                        name="intent"
+                        value="draft"
+                      >
+                        下書き保存
+                      </button>
+                      <button
+                        className="rounded-md bg-amber-600 py-1.5 text-xs font-bold text-white"
+                        name="intent"
+                        value="submit"
+                      >
+                        先生に提出
+                      </button>
+                    </div>
+                    <p className="text-[11px] leading-tight text-slate-500">
+                      提出後も編集・再提出できます。クラスの先生だけに共有されます。
+                    </p>
+                    {diary?.teacherReply ? (
+                      <div className="rounded-md border border-blue-200 bg-blue-50 p-2">
+                        <p className="text-xs font-bold text-blue-900">
+                          先生からの返信
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed whitespace-pre-wrap text-slate-700">
+                          {diary.teacherReply}
+                        </p>
+                      </div>
+                    ) : null}
                   </form>
                 </div>
               </article>

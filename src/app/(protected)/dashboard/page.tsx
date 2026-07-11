@@ -50,6 +50,20 @@ export default async function DashboardPage() {
           カレンダーを開く
         </Link>
       </section>
+      {session.user.role === "TEACHER" ? (
+        <section className="mt-6 rounded-2xl border border-amber-200 bg-white p-8 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-950">提出された日記</h2>
+          <p className="mt-2 text-slate-600">
+            クラスの学生が提出した日記を確認できます。
+          </p>
+          <Link
+            className="mt-5 inline-flex rounded-xl bg-amber-600 px-5 py-3 font-bold text-white hover:bg-amber-700"
+            href="/diaries"
+          >
+            日記を確認する
+          </Link>
+        </section>
+      ) : null}
       <section className="mt-6 rounded-2xl border border-violet-200 bg-white p-8 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">1週間の計画表</h2>
         <p className="mt-2 text-slate-600">

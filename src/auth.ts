@@ -45,9 +45,13 @@ export const authConfig = {
       return session;
     },
     authorized({ auth, request }) {
-      const isProtected = ["/dashboard", "/calendar", "/class"].some((path) =>
-        request.nextUrl.pathname.startsWith(path),
-      );
+      const isProtected = [
+        "/dashboard",
+        "/calendar",
+        "/class",
+        "/weekly",
+        "/diaries",
+      ].some((path) => request.nextUrl.pathname.startsWith(path));
       return !isProtected || Boolean(auth?.user);
     },
   },

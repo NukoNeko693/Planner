@@ -37,6 +37,7 @@ model User {
   events       Event[]
   weeklyPlanItems WeeklyPlanItem[]
   weeklyNotes     WeeklyNote[]
+  dailyDiaries    DailyDiary[]
   auditLogs    AuditLog[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -44,6 +45,22 @@ model User {
   @@index([status])
   @@index([role, status])
   @@index([classId, status])
+}
+
+model DailyDiary {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  diaryDate   DateTime  @db.Date
+  content     String    @default("")
+  submittedAt DateTime?
+  teacherReply String   @default("")
+  repliedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, diaryDate])
+  @@index([submittedAt, diaryDate])
 }
 
 model WeeklyPlanItem {
