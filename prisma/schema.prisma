@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum EventScope {
+  PERSONAL
+  CLASS
+  GRADE
+}
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  name         String
+  passwordHash String?
+  status       UserStatus @default(ACTIVE)
+  events       Event[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  @@index([status])
+}
+
+model Event {
+  id        String     @id @default(cuid())
+  title     String
+  eventDate DateTime   @db.Date
+  scope     EventScope
+  creatorId String
+  creator   User       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  @@index([eventDate, deletedAt])
+  @@index([creatorId, eventDate, deletedAt])
+  @@index([scope, eventDate, deletedAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+}

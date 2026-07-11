@@ -1,0 +1,14 @@
+CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'SUSPENDED');
+CREATE TYPE "EventScope" AS ENUM ('PERSONAL', 'CLASS', 'GRADE');
+CREATE TABLE "User" ("id" TEXT NOT NULL, "username" TEXT NOT NULL, "name" TEXT NOT NULL, "passwordHash" TEXT, "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "User_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "Event" ("id" TEXT NOT NULL, "title" TEXT NOT NULL, "eventDate" DATE NOT NULL, "scope" "EventScope" NOT NULL, "creatorId" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, "deletedAt" TIMESTAMP(3), CONSTRAINT "Event_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "AuditLog" ("id" TEXT NOT NULL, "actorId" TEXT, "action" TEXT NOT NULL, "entityType" TEXT NOT NULL, "entityId" TEXT NOT NULL, "metadata" JSONB, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
+CREATE INDEX "User_status_idx" ON "User"("status");
+CREATE INDEX "Event_eventDate_deletedAt_idx" ON "Event"("eventDate", "deletedAt");
+CREATE INDEX "Event_creatorId_eventDate_deletedAt_idx" ON "Event"("creatorId", "eventDate", "deletedAt");
+CREATE INDEX "Event_scope_eventDate_deletedAt_idx" ON "Event"("scope", "eventDate", "deletedAt");
+CREATE INDEX "AuditLog_actorId_createdAt_idx" ON "AuditLog"("actorId", "createdAt");
+CREATE INDEX "AuditLog_entityType_entityId_createdAt_idx" ON "AuditLog"("entityType", "entityId", "createdAt");
+ALTER TABLE "Event" ADD CONSTRAINT "Event_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
