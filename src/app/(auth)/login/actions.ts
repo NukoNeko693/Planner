@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { signIn } from "@/auth";
+import { userPath } from "@/lib/user-path";
 
 export type LoginState = { error?: string };
 
@@ -11,11 +12,13 @@ export async function login(
   _: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
+  const username = String(formData.get("username") ?? "").trim();
+  const dashboardUrl = userPath(username, "dashboard");
   try {
     await signIn("credentials", {
-      username: formData.get("username"),
+      username,
       password: formData.get("password"),
-      redirectTo: "/dashboard",
+      redirectTo: dashboardUrl,
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -23,5 +26,5 @@ export async function login(
     }
     throw error;
   }
-  redirect("/dashboard");
+  redirect(dashboardUrl);
 }

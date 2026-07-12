@@ -6,7 +6,13 @@ export async function findActiveUserByUsername(username: string) {
       username: { equals: username.trim(), mode: "insensitive" },
       status: "ACTIVE",
     },
-    select: { id: true, name: true, role: true, passwordHash: true },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      role: true,
+      passwordHash: true,
+    },
   });
 }
 
@@ -25,7 +31,14 @@ export async function findActiveUserContext(userId: string) {
       id: true,
       role: true,
       classId: true,
-      schoolClass: { select: { name: true } },
+      schoolClass: {
+        select: { name: true, schoolDivision: true, grade: true },
+      },
+      gradeTeamMemberships: { select: { schoolDivision: true, grade: true } },
+      electiveMemberships: {
+        select: { schoolClass: { select: { id: true, name: true } } },
+        orderBy: { schoolClass: { name: "asc" } },
+      },
     },
   });
 }

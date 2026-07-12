@@ -25,6 +25,7 @@ export const weeklyNoteSchema = z.object({
 export const dailyDiarySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   content: z.string().trim().min(1, "日記を入力してください。").max(2000),
+  recipientTeacherId: z.string().optional(),
 });
 
 export const diaryReplySchema = z.object({

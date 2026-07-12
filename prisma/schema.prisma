@@ -25,42 +25,113 @@ enum EventScope {
   SCHOOL
 }
 
+enum ClassType {
+  HOMEROOM
+  ELECTIVE
+}
+
+enum SchoolDivision {
+  MIDDLE
+  HIGH
+}
+
+enum AnnouncementScope {
+  HOMEROOM
+  GRADE
+  SCHOOL
+}
+
+enum AnnouncementStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
 model User {
-  id           String       @id @default(cuid())
-  username     String       @unique
-  name         String
-  passwordHash String?
-  status       UserStatus   @default(ACTIVE)
-  role         UserRole     @default(STUDENT)
-  classId      String?
-  schoolClass  SchoolClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
-  events       Event[]
-  weeklyPlanItems WeeklyPlanItem[]
-  weeklyNotes     WeeklyNote[]
-  dailyDiaries    DailyDiary[]
-  auditLogs    AuditLog[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                    String                @id @default(cuid())
+  username              String                @unique
+  name                  String
+  passwordHash          String?
+  status                UserStatus            @default(ACTIVE)
+  role                  UserRole              @default(STUDENT)
+  classId               String?
+  schoolClass           SchoolClass?          @relation(fields: [classId], references: [id], onDelete: SetNull)
+  events                Event[]
+  weeklyPlanItems       WeeklyPlanItem[]
+  weeklyNotes           WeeklyNote[]
+  dailyDiaries          DailyDiary[]
+  electiveMemberships   ClassMembership[]
+  ownedElectiveClasses  SchoolClass[]         @relation("ElectiveOwner")
+  receivedDiaries       DailyDiary[]          @relation("DiaryRecipient")
+  auditLogs             AuditLog[]
+  gradeTeamMemberships  GradeTeamMembership[]
+  announcements         Announcement[]        @relation("AnnouncementAuthor")
+  reviewedAnnouncements Announcement[]        @relation("AnnouncementReviewer")
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
 
   @@index([status])
   @@index([role, status])
   @@index([classId, status])
 }
 
+model Announcement {
+  id              String                   @id @default(cuid())
+  title           String
+  body            String
+  purpose         String?
+  scope           AnnouncementScope
+  status          AnnouncementStatus       @default(PENDING)
+  authorId        String
+  author          User                     @relation("AnnouncementAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reviewerId      String?
+  reviewer        User?                    @relation("AnnouncementReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  rejectionReason String?
+  classId         String?
+  schoolDivision  SchoolDivision?
+  grade           Int?
+  publishedAt     DateTime?
+  reviewedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  attachments     AnnouncementAttachment[]
+
+  @@index([status, publishedAt])
+  @@index([authorId, createdAt])
+  @@index([classId, status])
+  @@index([schoolDivision, grade, status])
+}
+
+model AnnouncementAttachment {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  fileName       String
+  mimeType       String
+  size           Int
+  data           Bytes
+  createdAt      DateTime     @default(now())
+
+  @@index([announcementId])
+}
+
 model DailyDiary {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  diaryDate   DateTime  @db.Date
-  content     String    @default("")
-  submittedAt DateTime?
-  teacherReply String   @default("")
-  repliedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  diaryDate          DateTime  @db.Date
+  content            String    @default("")
+  submittedAt        DateTime?
+  teacherReply       String    @default("")
+  repliedAt          DateTime?
+  recipientTeacherId String?
+  recipientTeacher   User?     @relation("DiaryRecipient", fields: [recipientTeacherId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@unique([userId, diaryDate])
   @@index([submittedAt, diaryDate])
+  @@index([recipientTeacherId, submittedAt])
 }
 
 model WeeklyPlanItem {
@@ -93,32 +164,87 @@ model WeeklyNote {
 }
 
 model SchoolClass {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  users     User[]
-  events    Event[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String            @id @default(cuid())
+  code             String            @unique
+  name             String
+  users            User[]
+  events           Event[]
+  type             ClassType         @default(HOMEROOM)
+  joinCode         String?           @unique
+  ownerId          String?
+  owner            User?             @relation("ElectiveOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  memberships      ClassMembership[]
+  timetableEntries TimetableEntry[]
+  schoolDivision   SchoolDivision?
+  grade            Int?
+  classLabel       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([schoolDivision, grade, classLabel])
+  @@index([ownerId, type])
+  @@index([schoolDivision, grade, type])
+}
+
+model TimetableEntry {
+  id          String      @id @default(cuid())
+  classId     String
+  schoolClass SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  weekday     Int
+  period      Int
+  subject     String
+  teacherName String      @default("")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([classId, weekday, period])
+  @@index([classId, weekday, period])
+}
+
+model GradeTeamMembership {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolDivision SchoolDivision
+  grade          Int
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, schoolDivision, grade])
+  @@index([schoolDivision, grade])
+}
+
+model ClassMembership {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classId     String
+  schoolClass SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+
+  @@unique([userId, classId])
+  @@index([classId, userId])
 }
 
 model Event {
-  id          String       @id @default(cuid())
-  title       String
-  eventDate   DateTime     @db.Date
-  scope       EventScope
-  creatorId   String
-  creator     User         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
-  classId     String?
-  schoolClass SchoolClass? @relation(fields: [classId], references: [id], onDelete: Restrict)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  id             String          @id @default(cuid())
+  title          String
+  eventDate      DateTime        @db.Date
+  scope          EventScope
+  creatorId      String
+  creator        User            @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  classId        String?
+  schoolDivision SchoolDivision?
+  grade          Int?
+  schoolClass    SchoolClass?    @relation(fields: [classId], references: [id], onDelete: Restrict)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
 
   @@index([eventDate, deletedAt])
   @@index([creatorId, eventDate, deletedAt])
   @@index([scope, eventDate, deletedAt])
   @@index([classId, eventDate, deletedAt])
+  @@index([schoolDivision, grade, eventDate, deletedAt])
 }
 
 model AuditLog {

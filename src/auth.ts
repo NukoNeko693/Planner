@@ -36,12 +36,16 @@ export const authConfig = {
   pages: { signIn: "/login" },
   callbacks: {
     jwt({ token, user }) {
-      if (user) token.role = user.role;
+      if (user) {
+        token.role = user.role;
+        token.username = user.username;
+      }
       return token;
     },
     session({ session, token }) {
       if (token.sub) session.user.id = token.sub;
       if (token.role) session.user.role = token.role;
+      if (token.username) session.user.username = token.username;
       return session;
     },
     authorized({ auth, request }) {
@@ -49,8 +53,10 @@ export const authConfig = {
         "/dashboard",
         "/calendar",
         "/class",
+        "/admin",
         "/weekly",
         "/diaries",
+        "/users",
       ].some((path) => request.nextUrl.pathname.startsWith(path));
       return !isProtected || Boolean(auth?.user);
     },

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { userPath } from "@/lib/user-path";
 import { findVisibleEvents } from "@/server/repositories/event-repository";
 import { findActiveUserContext } from "@/server/repositories/user-repository";
 
@@ -49,9 +50,54 @@ export default async function CalendarPage({
   );
   while (cells.length % 7) cells.push(last.getDate() + 1);
 
+  const availableClasses = [
+    ...(user.classId && user.schoolClass
+      ? [
+          {
+            id: user.classId,
+            name: user.schoolClass.name,
+            type: "HOMEROOM" as const,
+          },
+        ]
+      : []),
+    ...user.electiveMemberships.map((membership) => ({
+      id: membership.schoolClass.id,
+      name: membership.schoolClass.name,
+      type: "ELECTIVE" as const,
+    })),
+  ];
+  const ownGrade =
+    user.schoolClass?.schoolDivision && user.schoolClass.grade
+      ? [
+          {
+            schoolDivision: user.schoolClass.schoolDivision,
+            grade: user.schoolClass.grade,
+          },
+        ]
+      : [];
+  const visibleGrades =
+    user.role === "ADMIN"
+      ? (["MIDDLE", "HIGH"] as const).flatMap((schoolDivision) =>
+          [1, 2, 3].map((grade) => ({ schoolDivision, grade })),
+        )
+      : [...ownGrade, ...user.gradeTeamMemberships].filter(
+          (item, index, all) =>
+            all.findIndex(
+              (candidate) =>
+                candidate.schoolDivision === item.schoolDivision &&
+                candidate.grade === item.grade,
+            ) === index,
+        );
+  const writableGrades =
+    user.role === "ADMIN"
+      ? visibleGrades
+      : user.role === "TEACHER"
+        ? visibleGrades
+        : [];
   const events = await findVisibleEvents(
     session.user.id,
-    user.classId,
+    availableClasses.map((item) => item.id),
+    visibleGrades,
     dateKey(first),
     dateKey(last),
   );
@@ -64,7 +110,7 @@ export default async function CalendarPage({
         <div>
           <Link
             className="text-sm font-semibold text-blue-700 hover:underline"
-            href="/dashboard"
+            href={userPath(session.user.username, "dashboard")}
           >
             ← ダッシュボード
           </Link>
@@ -77,6 +123,8 @@ export default async function CalendarPage({
         <EventForm
           defaultDate={dateKey(new Date())}
           isAdmin={user.role === "ADMIN"}
+          classes={availableClasses}
+          grades={writableGrades}
         />
       </header>
 
@@ -85,7 +133,7 @@ export default async function CalendarPage({
           <Link
             aria-label="前の月"
             className="rounded-lg border px-4 py-2 hover:bg-slate-50"
-            href={`/calendar?month=${monthValue(previous)}`}
+            href={`${userPath(session.user.username, "calendar")}?month=${monthValue(previous)}`}
           >
             ‹
           </Link>
@@ -95,7 +143,7 @@ export default async function CalendarPage({
           <Link
             aria-label="次の月"
             className="rounded-lg border px-4 py-2 hover:bg-slate-50"
-            href={`/calendar?month=${monthValue(next)}`}
+            href={`${userPath(session.user.username, "calendar")}?month=${monthValue(next)}`}
           >
             ›
           </Link>
@@ -137,16 +185,25 @@ export default async function CalendarPage({
                           ? "👤"
                           : event.scope === "SCHOOL"
                             ? "🌐"
-                            : "🏫"}
+                            : event.scope === "GRADE"
+                              ? "🎓"
+                              : "🏫"}
                       </span>{" "}
                       {event.scope === "PERSONAL"
                         ? "個人"
                         : event.scope === "SCHOOL"
                           ? "学校全体"
-                          : "クラス"}
+                          : event.scope === "GRADE"
+                            ? `${event.schoolDivision === "MIDDLE" ? "中学" : "高校"}${event.grade}年`
+                            : (event.className ?? "クラス")}
                       ・{event.title}
-                      {event.scope === "CLASS" && user.role === "TEACHER" ? (
-                        <DeleteEventButton eventId={event.id} />
+                      {event.scope === "CLASS" &&
+                      user.role === "TEACHER" &&
+                      event.classId ? (
+                        <DeleteEventButton
+                          eventId={event.id}
+                          classId={event.classId}
+                        />
                       ) : null}
                       {event.scope === "SCHOOL" && user.role === "ADMIN" ? (
                         <SchoolEventControls event={event} />
@@ -160,7 +217,7 @@ export default async function CalendarPage({
         </div>
       </section>
       <p className="mt-4 text-sm text-slate-500">
-        個人予定は本人のみ、クラス予定は同じクラスだけ、学校全体予定はすべてのログインユーザーに表示されます。
+        個人予定は本人のみ、クラス予定は同じクラス、学年予定は同じ学年、学校全体予定はすべてのログインユーザーに表示されます。
       </p>
     </main>
   );

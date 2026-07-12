@@ -41,7 +41,7 @@ const users = accountGroups.flatMap(({ baseName, passwordHash }) => [
     classCode: baseName === "Soma" ? "1-B" : "1-A",
   },
   {
-    username: `${baseName}O`,
+    username: `${baseName}A`,
     name: `${baseName}（管理者）`,
     passwordHash,
     role: "ADMIN" as const,
@@ -52,12 +52,24 @@ const users = accountGroups.flatMap(({ baseName, passwordHash }) => [
 async function main() {
   const classes = await Promise.all(
     [
-      { code: "1-A", name: "1年A組" },
-      { code: "1-B", name: "1年B組" },
+      {
+        code: "1-A",
+        name: "中学1年A組",
+        schoolDivision: "MIDDLE" as const,
+        grade: 1,
+        classLabel: "A",
+      },
+      {
+        code: "1-B",
+        name: "中学1年B組",
+        schoolDivision: "MIDDLE" as const,
+        grade: 1,
+        classLabel: "B",
+      },
     ].map((schoolClass) =>
       prisma.schoolClass.upsert({
         where: { code: schoolClass.code },
-        update: { name: schoolClass.name },
+        update: schoolClass,
         create: schoolClass,
       }),
     ),

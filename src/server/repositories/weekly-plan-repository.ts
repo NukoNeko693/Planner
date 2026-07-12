@@ -23,28 +23,110 @@ export function saveDailyDiary(input: {
   date: string;
   content: string;
   submit: boolean;
+  recipientTeacherId?: string;
 }) {
   const diaryDate = dbDate(input.date);
-  return prisma.dailyDiary.upsert({
-    where: { userId_diaryDate: { userId: input.userId, diaryDate } },
-    create: {
-      userId: input.userId,
-      diaryDate,
-      content: input.content,
-      submittedAt: input.submit ? new Date() : null,
-    },
-    update: {
-      content: input.content,
-      ...(input.submit ? { submittedAt: new Date() } : {}),
-    },
+  return prisma.$transaction(async (tx) => {
+    if (input.submit) {
+      if (!input.recipientTeacherId) return null;
+      const owner = await tx.user.findUnique({
+        where: { id: input.userId },
+        select: {
+          classId: true,
+          electiveMemberships: { select: { classId: true } },
+        },
+      });
+      const electiveClassIds =
+        owner?.electiveMemberships.map((item) => item.classId) ?? [];
+      const teacher = await tx.user.findFirst({
+        where: {
+          id: input.recipientTeacherId,
+          status: "ACTIVE",
+          role: "TEACHER",
+          OR: [
+            ...(owner?.classId ? [{ classId: owner.classId }] : []),
+            ...(electiveClassIds.length
+              ? [
+                  {
+                    electiveMemberships: {
+                      some: { classId: { in: electiveClassIds } },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+        select: { id: true },
+      });
+      if (!teacher) return null;
+    }
+    return tx.dailyDiary.upsert({
+      where: { userId_diaryDate: { userId: input.userId, diaryDate } },
+      create: {
+        userId: input.userId,
+        diaryDate,
+        content: input.content,
+        submittedAt: input.submit ? new Date() : null,
+        recipientTeacherId: input.submit ? input.recipientTeacherId : null,
+      },
+      update: {
+        content: input.content,
+        ...(input.submit
+          ? {
+              submittedAt: new Date(),
+              recipientTeacherId: input.recipientTeacherId,
+            }
+          : {}),
+      },
+    });
   });
 }
 
-export function findSubmittedDiariesForTeacher(classId: string) {
+export async function findDiaryRecipientTeachers(userId: string) {
+  const owner = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      classId: true,
+      electiveMemberships: { select: { classId: true } },
+    },
+  });
+  const electiveClassIds =
+    owner?.electiveMemberships.map((item) => item.classId) ?? [];
+  return prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      role: "TEACHER",
+      OR: [
+        ...(owner?.classId ? [{ classId: owner.classId }] : []),
+        ...(electiveClassIds.length
+          ? [
+              {
+                electiveMemberships: {
+                  some: { classId: { in: electiveClassIds } },
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      schoolClass: { select: { name: true } },
+      electiveMemberships: {
+        where: { classId: { in: electiveClassIds } },
+        select: { schoolClass: { select: { name: true } } },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+}
+
+export function findSubmittedDiariesForTeacher(teacherId: string) {
   return prisma.dailyDiary.findMany({
     where: {
       submittedAt: { not: null },
-      user: { classId, status: "ACTIVE", role: "STUDENT" },
+      recipientTeacherId: teacherId,
     },
     select: {
       id: true,
@@ -62,14 +144,14 @@ export function findSubmittedDiariesForTeacher(classId: string) {
 
 export function replyToDiary(input: {
   diaryId: string;
-  classId: string;
+  teacherId: string;
   reply: string;
 }) {
   return prisma.dailyDiary.updateMany({
     where: {
       id: input.diaryId,
       submittedAt: { not: null },
-      user: { classId: input.classId, status: "ACTIVE", role: "STUDENT" },
+      recipientTeacherId: input.teacherId,
     },
     data: { teacherReply: input.reply, repliedAt: new Date() },
   });

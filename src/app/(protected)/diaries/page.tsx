@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { userPath } from "@/lib/user-path";
 import { findActiveUserContext } from "@/server/repositories/user-repository";
 import { findSubmittedDiariesForTeacher } from "@/server/repositories/weekly-plan-repository";
 import { replyToDiaryAction } from "./actions";
@@ -9,14 +10,15 @@ export default async function DiariesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const user = await findActiveUserContext(session.user.id);
-  if (!user || user.role !== "TEACHER" || !user.classId) redirect("/dashboard");
-  const diaries = await findSubmittedDiariesForTeacher(user.classId);
+  if (!user || user.role !== "TEACHER" || !user.classId)
+    redirect(userPath(session.user.username, "dashboard"));
+  const diaries = await findSubmittedDiariesForTeacher(user.id);
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-4 py-8 sm:px-6">
       <Link
         className="text-sm font-semibold text-blue-700 hover:underline"
-        href="/dashboard"
+        href={userPath(session.user.username, "dashboard")}
       >
         ← ダッシュボード
       </Link>

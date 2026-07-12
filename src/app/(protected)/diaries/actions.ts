@@ -16,7 +16,7 @@ export async function replyToDiaryAction(formData: FormData) {
     reply: formData.get("reply"),
   });
   if (!parsed.success) return;
-  await replyToDiary({ classId: teacher.classId, ...parsed.data });
+  await replyToDiary({ teacherId: teacher.id, ...parsed.data });
   revalidatePath("/diaries");
   revalidatePath("/weekly");
 }

@@ -9,6 +9,8 @@ export async function createEvent(input: {
   scope: EventScope;
   creatorId: string;
   classId: string | null;
+  schoolDivision: "MIDDLE" | "HIGH" | null;
+  grade: number | null;
 }): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const event = await tx.event.create({
@@ -18,6 +20,8 @@ export async function createEvent(input: {
         scope: input.scope,
         creatorId: input.creatorId,
         classId: input.scope === "CLASS" ? input.classId : null,
+        schoolDivision: input.scope === "GRADE" ? input.schoolDivision : null,
+        grade: input.scope === "GRADE" ? input.grade : null,
       },
       select: { id: true },
     });
@@ -35,7 +39,8 @@ export async function createEvent(input: {
 
 export async function findVisibleEvents(
   userId: string,
-  classId: string | null,
+  classIds: string[],
+  grades: { schoolDivision: "MIDDLE" | "HIGH"; grade: number }[],
   from: string,
   to: string,
 ): Promise<CalendarEvent[]> {
@@ -46,7 +51,10 @@ export async function findVisibleEvents(
       OR: [
         { scope: "SCHOOL" },
         { scope: "PERSONAL", creatorId: userId },
-        ...(classId ? [{ scope: "CLASS" as const, classId }] : []),
+        ...(classIds.length
+          ? [{ scope: "CLASS" as const, classId: { in: classIds } }]
+          : []),
+        ...grades.map((grade) => ({ scope: "GRADE" as const, ...grade })),
       ],
     },
     select: {
@@ -56,6 +64,10 @@ export async function findVisibleEvents(
       scope: true,
       creatorId: true,
       creator: { select: { name: true } },
+      classId: true,
+      schoolClass: { select: { name: true } },
+      schoolDivision: true,
+      grade: true,
     },
     orderBy: [{ eventDate: "asc" }, { createdAt: "asc" }],
   });
@@ -66,6 +78,10 @@ export async function findVisibleEvents(
     scope: event.scope as EventScope,
     creatorId: event.creatorId,
     creatorName: event.creator.name,
+    classId: event.classId,
+    className: event.schoolClass?.name ?? null,
+    schoolDivision: event.schoolDivision,
+    grade: event.grade,
   }));
 }
 

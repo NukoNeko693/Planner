@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { findWeeklyPlan } from "@/server/repositories/weekly-plan-repository";
+import { userPath } from "@/lib/user-path";
+import {
+  findDiaryRecipientTeachers,
+  findWeeklyPlan,
+} from "@/server/repositories/weekly-plan-repository";
 import {
   addPlanItem,
   deletePlanItemAction,
@@ -41,6 +45,7 @@ export default async function WeeklyPage({
     key(days[0]),
     key(days[6]),
   );
+  const recipientTeachers = await findDiaryRecipientTeachers(session.user.id);
   const move = (amount: number) =>
     key(
       new Date(start.getFullYear(), start.getMonth(), start.getDate() + amount),
@@ -52,7 +57,7 @@ export default async function WeeklyPage({
         <div>
           <Link
             className="text-sm font-semibold text-blue-700 hover:underline"
-            href="/dashboard"
+            href={userPath(session.user.username, "dashboard")}
           >
             ← ダッシュボード
           </Link>
@@ -226,9 +231,34 @@ export default async function WeeklyPage({
                       placeholder="今日あったこと、感じたこと"
                       required
                     />
+                    <select
+                      className="w-full rounded-md border border-amber-200 bg-white p-2 text-xs"
+                      defaultValue={diary?.recipientTeacherId ?? ""}
+                      name="recipientTeacherId"
+                      required
+                    >
+                      <option value="">提出先の先生を選択</option>
+                      {recipientTeachers.map((teacher) => {
+                        const classes = [
+                          teacher.schoolClass?.name,
+                          ...teacher.electiveMemberships.map(
+                            (item) => item.schoolClass.name,
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .join("・");
+                        return (
+                          <option key={teacher.id} value={teacher.id}>
+                            {teacher.name}
+                            {classes ? `（${classes}）` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
                     <div className="grid grid-cols-2 gap-1">
                       <button
                         className="rounded-md border border-slate-300 py-1.5 text-xs font-bold"
+                        formNoValidate
                         name="intent"
                         value="draft"
                       >

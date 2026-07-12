@@ -26,6 +26,7 @@ export async function saveDailyDiaryAction(formData: FormData) {
   const parsed = dailyDiarySchema.safeParse({
     date: formData.get("date"),
     content: formData.get("content"),
+    recipientTeacherId: formData.get("recipientTeacherId") || undefined,
   });
   if (!parsed.success) return;
   await saveDailyDiary({

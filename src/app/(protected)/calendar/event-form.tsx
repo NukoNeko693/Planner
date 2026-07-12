@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { createEvent, type CreateEventState } from "./actions";
 
@@ -9,12 +9,17 @@ const initialState: CreateEventState = {};
 export function EventForm({
   defaultDate,
   isAdmin,
+  classes,
+  grades,
 }: {
   defaultDate: string;
   isAdmin: boolean;
+  classes: { id: string; name: string; type: "HOMEROOM" | "ELECTIVE" }[];
+  grades: { schoolDivision: "MIDDLE" | "HIGH"; grade: number }[];
 }) {
   const [state, action, pending] = useActionState(createEvent, initialState);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [scope, setScope] = useState("PERSONAL");
 
   return (
     <>
@@ -86,6 +91,7 @@ export function EventForm({
                     className="mr-1"
                     defaultChecked
                     name="scope"
+                    onChange={(event) => setScope(event.target.value)}
                     type="radio"
                     value="PERSONAL"
                   />{" "}
@@ -95,6 +101,7 @@ export function EventForm({
                   <input
                     className="mr-1"
                     name="scope"
+                    onChange={(event) => setScope(event.target.value)}
                     type="radio"
                     value="CLASS"
                   />{" "}
@@ -107,25 +114,102 @@ export function EventForm({
                     className="mr-1"
                     disabled={!isAdmin}
                     name="scope"
+                    onChange={(event) => setScope(event.target.value)}
                     type="radio"
                     value="SCHOOL"
                   />{" "}
                   学校全体
                 </label>
-                <button
-                  className="rounded-xl border border-slate-300 p-3 text-slate-500 hover:bg-slate-50"
-                  onClick={() =>
-                    window.alert("学年予定は現在対応していません。")
-                  }
-                  type="button"
+                <label
+                  className={`rounded-xl border border-slate-300 p-3 text-center has-checked:border-emerald-700 has-checked:bg-emerald-50 ${grades.length ? "cursor-pointer" : "cursor-not-allowed bg-slate-100 text-slate-400"}`}
                 >
+                  <input
+                    className="mr-1"
+                    disabled={!grades.length}
+                    name="scope"
+                    onChange={(event) => setScope(event.target.value)}
+                    type="radio"
+                    value="GRADE"
+                  />{" "}
                   学年
-                </button>
+                </label>
               </div>
               {!isAdmin ? (
                 <p className="mt-2 text-xs font-medium text-slate-500">
                   学校全体予定の追加・編集は管理者のみ可能です。
                 </p>
+              ) : null}
+              {scope === "CLASS" ? (
+                <div className="mt-4">
+                  <label
+                    className="mb-2 block text-sm font-semibold"
+                    htmlFor="event-class"
+                  >
+                    共有するクラス
+                  </label>
+                  <select
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3"
+                    id="event-class"
+                    name="classId"
+                    required
+                    defaultValue=""
+                  >
+                    <option disabled value="">
+                      クラスを選択
+                    </option>
+                    {classes.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.type === "HOMEROOM" ? "ホームルーム" : "選択授業"}
+                        ：{item.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {scope === "GRADE" ? (
+                <div className="mt-4">
+                  <label
+                    className="mb-2 block text-sm font-semibold"
+                    htmlFor="event-grade"
+                  >
+                    対象の学年団
+                  </label>
+                  <select
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3"
+                    id="event-grade"
+                    defaultValue=""
+                    onChange={(event) => {
+                      const [division, grade] = event.target.value.split(":");
+                      const form = event.currentTarget.form;
+                      if (form) {
+                        (
+                          form.elements.namedItem(
+                            "schoolDivision",
+                          ) as HTMLInputElement
+                        ).value = division;
+                        (
+                          form.elements.namedItem("grade") as HTMLInputElement
+                        ).value = grade;
+                      }
+                    }}
+                    required
+                  >
+                    <option disabled value="">
+                      学年団を選択
+                    </option>
+                    {grades.map((item) => (
+                      <option
+                        key={`${item.schoolDivision}-${item.grade}`}
+                        value={`${item.schoolDivision}:${item.grade}`}
+                      >
+                        {item.schoolDivision === "MIDDLE" ? "中学" : "高校"}
+                        {item.grade}年
+                      </option>
+                    ))}
+                  </select>
+                  <input name="schoolDivision" type="hidden" />
+                  <input name="grade" type="hidden" />
+                </div>
               ) : null}
             </fieldset>
           </div>

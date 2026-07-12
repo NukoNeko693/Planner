@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { userPath } from "@/lib/user-path";
 
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
   const session = await auth();
-  if (session?.user) redirect("/dashboard");
+  if (session?.user) redirect(userPath(session.user.username, "dashboard"));
 
   return (
     <main className="grid min-h-screen place-items-center px-6 py-12">

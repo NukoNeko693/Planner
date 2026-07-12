@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as typeof globalThis & {
   prismaSchemaVersion?: string;
 };
 // Fast Refreshが保持する古いClientを、フィールド追加時にも確実に破棄する。
-const prismaSchemaVersion = "20260711170000";
+const prismaSchemaVersion = "20260711190000";
 const cachedPrisma = globalForPrisma.prisma;
 export const prisma =
   cachedPrisma && globalForPrisma.prismaSchemaVersion === prismaSchemaVersion
