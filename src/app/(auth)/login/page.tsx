@@ -17,7 +17,11 @@ export default async function LoginPage() {
         </p>
         <h1 className="mt-3 text-3xl font-bold text-slate-950">ログイン</h1>
         <p className="mt-2 text-slate-600">学校の予定表へアクセスします。</p>
-        <LoginForm />
+        <LoginForm
+          googleEnabled={Boolean(
+            process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
+          )}
+        />
       </section>
     </main>
   );

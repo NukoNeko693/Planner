@@ -18,11 +18,7 @@ export function AnnouncementForm({
   );
   const [scope, setScope] = useState("HOMEROOM");
   return (
-    <form
-      action={action}
-      className="mt-5 space-y-4"
-      encType="multipart/form-data"
-    >
+    <form action={action} className="mt-5 space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm font-bold">
           タイトル

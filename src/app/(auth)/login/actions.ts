@@ -8,6 +8,10 @@ import { userPath } from "@/lib/user-path";
 
 export type LoginState = { error?: string };
 
+export async function loginWithGoogle() {
+  await signIn("google", { redirectTo: "/dashboard" });
+}
+
 export async function login(
   _: LoginState,
   formData: FormData,

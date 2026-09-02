@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 
 import { loginSchema } from "@/features/auth/validation";
 import { authenticateUser } from "@/server/services/auth-service";
+import { findOrCreateGoogleUser } from "@/server/repositories/user-repository";
 
 const providers: NextAuthConfig["providers"] = [
   Credentials({
@@ -35,6 +36,20 @@ export const authConfig = {
   session: { strategy: "jwt", maxAge: 60 * 60 * 8 },
   pages: { signIn: "/login" },
   callbacks: {
+    async signIn({ account, profile, user }) {
+      if (account?.provider !== "google") return true;
+      if (!profile?.email || profile.email_verified !== true) return false;
+
+      const databaseUser = await findOrCreateGoogleUser(
+        profile.email,
+        profile.name ?? user.name ?? profile.email.split("@")[0],
+      );
+      user.id = databaseUser.id;
+      user.name = databaseUser.name;
+      user.username = databaseUser.username;
+      user.role = databaseUser.role;
+      return true;
+    },
     jwt({ token, user }) {
       if (user) {
         token.role = user.role;
